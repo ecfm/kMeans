@@ -33,15 +33,19 @@ public class kMeans extends Configured implements Tool {
       System.out.println(Arrays.toString(args));
       Job job = new Job(getConf(), "WordCount");
       job.setJarByClass(kMeans.class);
-      job.setOutputKeyClass(Text.class);
-      job.setOutputValueClass(IntWritable.class);
 
       job.setMapperClass(Map.class);
       job.setReducerClass(Reduce.class);
 
       job.setInputFormatClass(TextInputFormat.class);
       job.setOutputFormatClass(TextOutputFormat.class);
-
+      
+      job.setOutputKeyClass(IntWritable.class);
+      job.setOutputValueClass(ArrayWritable.class);
+ 
+      job.setMapOutputKeyClass(IntWritable.class);
+      job.setMapOutputValueClass(ArrayWritable.class);
+      
       FileInputFormat.addInputPath(job, new Path(args[0]));
       FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
@@ -50,7 +54,7 @@ public class kMeans extends Configured implements Tool {
       return 0;
    }
    
-   public static class Map extends Mapper<LongWritable, Text, Text, IntWritable> {
+   public static class Map extends Mapper<LongWritable, Text, IntWritable, ArrayWritable> {
       private final static IntWritable ONE = new IntWritable(1);
       private Text word = new Text();
 
@@ -58,25 +62,27 @@ public class kMeans extends Configured implements Tool {
       public void map(LongWritable key, Text value, Context context)
               throws IOException, InterruptedException {
          String[] val_str_array = value.toString().split("\\s");
-         int num_dim = val_str_array.length;
-         double[] val_array = new double[num_dim];
-         for (int i = 0; i < num_dim; i++) {
-         	val_array[i] = Double.parseDouble(val_str_array[i]);
+         DoubleWritable[] val_array = new DoubleWritable[NUM_DIM]
+         for (int i = 0; i < NUM_DIM; i++) {
+         	val_array[i].set(Double.parseDouble(val_str_array[i]));
          }
-         for (double[] c: centroids) {
-        	String cleaned_token = token.replaceAll("[^a-zA-Z]", "");
-        	if (cleaned_token.length() > 0) {
-	        	String first_letter = cleaned_token.toLowerCase().substring(0, 1);
-	            word.set(first_letter);
-	            context.write(word, ONE);
-        	}
+         double min_cost = Double.MAX_VALUE;
+         int c = -1;
+         for (int i = 0; i < centroids.length; i++) {
+             double cost = euclideanDistance(centroids[i], val_array);
+             if (cost < min_cost) {
+             	min_cost = cost;
+             	c = i;
+             }
          }
+         ArrayWritable outputArray = new ArrayWritable(DoubleWritable.class);
+         context.write(c, outputArray);
       }
    }
 
-   public static class Reduce extends Reducer<Text, IntWritable, Text, IntWritable> {
+   public static class Reduce extends Reducer<IntWritable, ArrayWritable, IntWritable, ArrayWritable> {
       @Override
-      public void reduce(Text key, Iterable<IntWritable> values, Context context)
+      public void reduce(IntWritable key, Iterable<ArrayWritable> values, Context context)
               throws IOException, InterruptedException {
          int sum = 0;
          for (IntWritable val : values) {
@@ -85,4 +91,5 @@ public class kMeans extends Configured implements Tool {
          context.write(key, new IntWritable(sum));
       }
    }
+   
 }
