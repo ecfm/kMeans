@@ -59,11 +59,10 @@ public class kMeans extends Configured implements Tool {
               throws IOException, InterruptedException {
          String[] val_str_array = value.toString().split("\\s");
          int num_dim = val_str_array.length;
-         double[] val_array = new double[num_dim]
+         double[] val_array = new double[num_dim];
          for (int i = 0; i < num_dim; i++) {
          	val_array[i] = Double.parseDouble(val_str_array[i]);
          }
-         double 
          for (double[] c: centroids) {
         	String cleaned_token = token.replaceAll("[^a-zA-Z]", "");
         	if (cleaned_token.length() > 0) {
