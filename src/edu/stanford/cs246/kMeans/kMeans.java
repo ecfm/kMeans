@@ -19,6 +19,8 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 public class kMeans extends Configured implements Tool {
+   private final int NUM_DIM = 58;
+   private static double[][] centroids;
    public static void main(String[] args) throws Exception {
       System.out.println(Arrays.toString(args));
       int res = ToolRunner.run(new Configuration(), new kMeans(), args);
@@ -55,7 +57,14 @@ public class kMeans extends Configured implements Tool {
       @Override
       public void map(LongWritable key, Text value, Context context)
               throws IOException, InterruptedException {
-         for (String token: value.toString().split("\\s+")) {
+         String[] val_str_array = value.toString().split("\\s");
+         int num_dim = val_str_array.length;
+         double[] val_array = new double[num_dim]
+         for (int i = 0; i < num_dim; i++) {
+         	val_array[i] = Double.parseDouble(val_str_array[i]);
+         }
+         double 
+         for (double[] c: centroids) {
         	String cleaned_token = token.replaceAll("[^a-zA-Z]", "");
         	if (cleaned_token.length() > 0) {
 	        	String first_letter = cleaned_token.toLowerCase().substring(0, 1);
