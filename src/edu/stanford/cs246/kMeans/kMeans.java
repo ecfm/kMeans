@@ -70,7 +70,7 @@ public class kMeans extends Configured implements Tool {
       job.setOutputValueClass(Text.class);
  
       job.setMapOutputKeyClass(IntWritable.class);
-      job.setMapOutputValueClass(ArrayWritable.class);
+      job.setMapOutputValueClass(DoubleArrayWritable.class);
       
       FileInputFormat.addInputPath(job, new Path(args[0]));
       FileOutputFormat.setOutputPath(job, new Path(args[1]));
@@ -80,47 +80,47 @@ public class kMeans extends Configured implements Tool {
       return 0;
    }
    
-//    private class DoubleArrayWritable implements Writable {
-//     private double[] values;
+   private class DoubleArrayWritable implements Writable {
+    private double[] values;
 
-//     public DoubleArrayWritable() {
+    public DoubleArrayWritable() {
 
-//     }
+    }
 
-//     public DoubleArrayWritable(double[] data) {
-//        this.values = data;
-//     }
+    public DoubleArrayWritable(double[] data) {
+       this.values = data;
+    }
 
-//     public double[] get() {
-//        return values;
-//     }
+    public double[] get() {
+       return values;
+    }
     
-//     public void set(double[] data) {
-//        this.values = data;
-//     }
+    public void set(double[] data) {
+       this.values = data;
+    }
     
-//     @Override
-//     public void write(DataOutput out) throws IOException {
-//        int length = values.length;
-//        out.writeInt(length);
-//        for(int i = 0; i < length; i++) {
-//             out.writeDouble(values[i]);
-//        }
-//     }
+    @Override
+    public void write(DataOutput out) throws IOException {
+       int length = values.length;
+       out.writeInt(length);
+       for(int i = 0; i < length; i++) {
+            out.writeDouble(values[i]);
+       }
+    }
     
-//     @Override
-//     public void readFields(DataInput in) throws IOException {
-//        int length = in.readInt();
+    @Override
+    public void readFields(DataInput in) throws IOException {
+       int length = in.readInt();
 
-//        data = new double[length];
+       data = new double[length];
 
-//        for(int i = 0; i < length; i++) {
-//             data[i] = in.readDouble();
-//        }
-//     }
-//  }
+       for(int i = 0; i < length; i++) {
+            data[i] = in.readDouble();
+       }
+    }
+ }
 
-   public static class Map extends Mapper<LongWritable, Text, IntWritable, ArrayWritable> {
+   public static class Map extends Mapper<LongWritable, Text, IntWritable, DoubleArrayWritable> {
       private final static IntWritable ONE = new IntWritable(1);
       private Text word = new Text();
 
@@ -128,9 +128,9 @@ public class kMeans extends Configured implements Tool {
       public void map(LongWritable key, Text value, Context context)
               throws IOException, InterruptedException {
          String[] val_str_array = value.toString().split("\\s");
-         DoubleWritable[] val_array = new DoubleWritable[NUM_DIM]; // store the cost at the end of the array 
+         double[] val_array = new double[NUM_DIM]; // store the cost at the end of the array 
          for (int i = 0; i < NUM_DIM; i++) {
-         	val_array[i] = new DoubleWritable(Double.parseDouble(val_str_array[i]));
+         	val_array[i] = Double.parseDouble(val_str_array[i]);
          }
          double min_cost = Double.MAX_VALUE;
          int c = -1;
@@ -142,38 +142,37 @@ public class kMeans extends Configured implements Tool {
              }
          }
          sum_cost += min_cost;
-         ArrayWritable outputArray = new ArrayWritable(DoubleWritable.class);
-         outputArray.set(val_array);
+         DoubleArrayWritable outputArray = new DoubleArrayWritable(val_array);
          context.write(new IntWritable(c), outputArray);
       }
       
-      private double euclideanDistanceCost(double[] centroid, DoubleWritable[] val_array){
+      private double euclideanDistanceCost(double[] centroid, double[] val_array){
     	  double cost = 0;
     	  for (int i = 0; i < NUM_DIM; i++) {
-    		  cost += Math.pow(centroid[i] - val_array[i].get(), 2);
+    		  cost += Math.pow(centroid[i] - val_array[i], 2);
     	  }
     	  return cost;
       }
       
-      private double manhattanDistanceCost(double[] centroid, DoubleWritable[] val_array){
+      private double manhattanDistanceCost(double[] centroid, double[] val_array){
     	  double cost = 0;
     	  for (int i = 0; i < NUM_DIM; i++) {
-    		  cost += Math.abs(centroid[i] - val_array[i].get());
+    		  cost += Math.abs(centroid[i] - val_array[i];
     	  }
     	  return cost;
       }
    }
 
-   public static class Reduce extends Reducer<IntWritable, ArrayWritable, NullWritable, ArrayWritable> {
+   public static class Reduce extends Reducer<IntWritable, DoubleArrayWritable, NullWritable, ArrayWritable> {
       @Override
-      public void reduce(IntWritable key, Iterable<ArrayWritable> values, Context context)
+      public void reduce(IntWritable key, Iterable<DoubleArrayWritable> values, Context context)
               throws IOException, InterruptedException {
          double[] new_centroid = new double[NUM_DIM];
          int num_points = 0;
-         for (ArrayWritable val : values) {
-        	 DoubleWritable[] val_array = (DoubleWritable[]) val.get();
+         for (DoubleArrayWritable val : values) {
+        	 double[] val_array = val.get();
         	 for (int i = 0; i < NUM_DIM; i++) {
-        		 new_centroid[i] += val_array[i].get();
+        		 new_centroid[i] += val_array[i];
         	 }
         	 num_points += 1;
          }
