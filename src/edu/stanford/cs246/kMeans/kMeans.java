@@ -1,11 +1,12 @@
 package edu.stanford.cs246.kMeans;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-
-import java.io.IOException;
+import java.io.*;
 import java.util.Arrays;
 
+
+
+//import org.apache.hadoop.classification.InterfaceAudience;
+//import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -27,22 +28,40 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 public class kMeans extends Configured implements Tool {
-   private final static int NUM_DIM = 58;
-   private final static int K = 10;
+//   private final static int NUM_DIM = 58;
+//   private final static int K = 10;
+  private final static int NUM_DIM = 2;
+   private final static int K = 2;
    private static double sum_cost;
    private static double[][] centroids;
    public static void main(String[] args) throws Exception {
       System.out.println(Arrays.toString(args));
-      int res = ToolRunner.run(new Configuration(), new kMeans(), args);
+      Configuration conf = new Configuration();
+      int res = -1;
+      for (int i = 0; i < 6; i++){
+    	  if (i == 0) {
+    		  conf.set("centroid_file", args[2]);
+    	  }
+    	  else {
+    		  conf.set("centroid_file", "output"+Integer.toString(i - 1)+"/part-r-00000");
+    	  }
+    	  conf.set("output_dir", "output"+Integer.toString(i));
+    	  res = ToolRunner.run(conf, new kMeans(), args);
+      }
+      
       
       System.exit(res);
    }
 
-   @Override
+   @SuppressWarnings("deprecation")
+@Override
    public int run(String[] args) throws Exception {
       System.out.println(Arrays.toString(args));
       sum_cost = 0;
-      BufferedReader br = new BufferedReader(new FileReader(args[2]));
+      
+      Configuration conf = getConf();
+      
+      BufferedReader br = new BufferedReader(new FileReader(conf.get("centroid_file")));
   	  String line = null;
   	  centroids = new double[K][NUM_DIM];
   	  
@@ -57,7 +76,7 @@ public class kMeans extends Configured implements Tool {
   	  
   	  
   	  br.close();
-      Job job = new Job(getConf(), "WordCount");
+      Job job = new Job(conf, "kMeans");
       job.setJarByClass(kMeans.class);
 
       job.setMapperClass(Map.class);
@@ -73,14 +92,18 @@ public class kMeans extends Configured implements Tool {
       job.setMapOutputValueClass(DoubleArrayWritable.class);
       
       FileInputFormat.addInputPath(job, new Path(args[0]));
-      FileOutputFormat.setOutputPath(job, new Path(args[1]));
+      FileOutputFormat.setOutputPath(job, new Path(conf.get("output_dir")));
 
       job.waitForCompletion(true);
-      System.out.println(sum_cost);
+      try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("total_cost.txt", true)))) {
+    	    out.println(sum_cost);
+    	}catch (IOException e) {
+    	    //exception handling left as an exercise for the reader
+    	}
       return 0;
    }
    
-   private class DoubleArrayWritable implements Writable {
+   private static class DoubleArrayWritable implements Writable {
     private double[] values;
 
     public DoubleArrayWritable() {
@@ -112,13 +135,13 @@ public class kMeans extends Configured implements Tool {
     public void readFields(DataInput in) throws IOException {
        int length = in.readInt();
 
-       data = new double[length];
+       values = new double[length];
 
        for(int i = 0; i < length; i++) {
-            data[i] = in.readDouble();
+            values[i] = in.readDouble();
        }
     }
- }
+  }
 
    public static class Map extends Mapper<LongWritable, Text, IntWritable, DoubleArrayWritable> {
       private final static IntWritable ONE = new IntWritable(1);
@@ -157,13 +180,13 @@ public class kMeans extends Configured implements Tool {
       private double manhattanDistanceCost(double[] centroid, double[] val_array){
     	  double cost = 0;
     	  for (int i = 0; i < NUM_DIM; i++) {
-    		  cost += Math.abs(centroid[i] - val_array[i];
+    		  cost += Math.abs(centroid[i] - val_array[i]);
     	  }
     	  return cost;
       }
    }
 
-   public static class Reduce extends Reducer<IntWritable, DoubleArrayWritable, NullWritable, ArrayWritable> {
+   public static class Reduce extends Reducer<IntWritable, DoubleArrayWritable, NullWritable, Text> {
       @Override
       public void reduce(IntWritable key, Iterable<DoubleArrayWritable> values, Context context)
               throws IOException, InterruptedException {
@@ -176,14 +199,19 @@ public class kMeans extends Configured implements Tool {
         	 }
         	 num_points += 1;
          }
-         String new_centroid = "";
+         String new_centroid_str = "";
          for (int i = 0; i < NUM_DIM; i++) {
             if (i > 0) {
-               new_centroid += " ";
+            	new_centroid_str += " ";
             }
-        	   new_centroid += Double.toString(new_centroid[i]/num_points);
+            new_centroid_str += Double.toString(new_centroid[i]/num_points);
          }
-         context.write(NullWritable.get(), new Text(new_centroid);
+         try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("centroids.txt", true)))) {
+     	    out.println(new_centroid_str);
+     	}catch (IOException e) {
+     	    //exception handling left as an exercise for the reader
+     	}
+         context.write(NullWritable.get(), new Text(new_centroid_str));
       }
    }
    
