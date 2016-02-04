@@ -67,7 +67,7 @@ public class kMeans extends Configured implements Tool {
       job.setOutputFormatClass(TextOutputFormat.class);
       
       job.setOutputKeyClass(NullWritable.class);
-      job.setOutputValueClass(ArrayWritable.class);
+      job.setOutputValueClass(Text.class);
  
       job.setMapOutputKeyClass(IntWritable.class);
       job.setMapOutputValueClass(ArrayWritable.class);
@@ -80,6 +80,46 @@ public class kMeans extends Configured implements Tool {
       return 0;
    }
    
+//    private class DoubleArrayWritable implements Writable {
+//     private double[] values;
+
+//     public DoubleArrayWritable() {
+
+//     }
+
+//     public DoubleArrayWritable(double[] data) {
+//        this.values = data;
+//     }
+
+//     public double[] get() {
+//        return values;
+//     }
+    
+//     public void set(double[] data) {
+//        this.values = data;
+//     }
+    
+//     @Override
+//     public void write(DataOutput out) throws IOException {
+//        int length = values.length;
+//        out.writeInt(length);
+//        for(int i = 0; i < length; i++) {
+//             out.writeDouble(values[i]);
+//        }
+//     }
+    
+//     @Override
+//     public void readFields(DataInput in) throws IOException {
+//        int length = in.readInt();
+
+//        data = new double[length];
+
+//        for(int i = 0; i < length; i++) {
+//             data[i] = in.readDouble();
+//        }
+//     }
+//  }
+
    public static class Map extends Mapper<LongWritable, Text, IntWritable, ArrayWritable> {
       private final static IntWritable ONE = new IntWritable(1);
       private Text word = new Text();
@@ -137,13 +177,14 @@ public class kMeans extends Configured implements Tool {
         	 }
         	 num_points += 1;
          }
-         DoubleWritable[] new_centroid_cost = new DoubleWritable[NUM_DIM];
+         String new_centroid = "";
          for (int i = 0; i < NUM_DIM; i++) {
-        	 new_centroid_cost[i] = new DoubleWritable(new_centroid[i]/num_points);
+            if (i > 0) {
+               new_centroid += " ";
+            }
+        	   new_centroid += Double.toString(new_centroid[i]/num_points);
          }
-         ArrayWritable outputArray = new ArrayWritable(DoubleWritable.class);
-         outputArray.set(new_centroid_cost);
-         context.write(NullWritable.get(), outputArray);
+         context.write(NullWritable.get(), new Text(new_centroid);
       }
    }
    
